@@ -39,7 +39,6 @@ Table Creator {
 Table Comic {
   name String [unique, not null]
   slug String [pk]
-  isOngoing Boolean [not null, default: true]
   isMatureAudience Boolean [not null]
   cover String [not null, default: '']
   pfp String [not null, default: '']

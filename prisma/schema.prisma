@@ -58,7 +58,6 @@ model Creator {
 model Comic {
   name             String        @unique
   slug             String        @id
-  isOngoing        Boolean       @default(true)
   isMatureAudience Boolean
   cover            String        @default("")
   pfp              String        @default("")

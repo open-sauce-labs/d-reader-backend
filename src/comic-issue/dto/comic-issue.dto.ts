@@ -8,10 +8,13 @@ import {
   IsPositive,
   IsString,
 } from 'class-validator';
+import { getReadUrl } from 'src/aws/s3client';
 import { ComicPageDto } from 'src/comic-page/entities/comic-page.dto';
+import { ComicDto } from 'src/comic/dto/comic.dto';
+import { CreatorDto } from 'src/creator/dto/creator.dto';
 import { IsKebabCase } from 'src/decorators/IsKebabCase';
 import { Presignable } from 'src/types/presignable';
-import { getRandomFloat, getRandomInt } from 'src/utils/helpers';
+import { getRandomFloatOrInt, getRandomInt } from 'src/utils/helpers';
 import { ComicIssueStatsDto } from './comic-issue-stats.dto';
 
 @Exclude()
@@ -73,18 +76,40 @@ export class ComicIssueDto extends Presignable<ComicIssueDto> {
   @IsPositive()
   comicId: number;
 
-  // @Expose()
-  // @Type(() => ComicDto)
-  // comic: ComicDto;
+  // TODO: CreatorPreviewDto
+  @Expose()
+  @Transform(({ obj }) => {
+    if (obj.comic?.creator) {
+      return {
+        name: obj.comic.creator?.name,
+        slug: obj.comic.creator?.slug,
+        isVerified: !!obj.comic.creator?.verifiedAt,
+        avatar: obj.comic.creator?.avatar,
+      };
+    } else return undefined;
+  })
+  creator: Pick<CreatorDto, 'name' | 'slug' | 'isVerified' | 'avatar'>;
+
+  @Expose()
+  @Transform(({ obj }) => {
+    if (obj.comic) {
+      return {
+        name: obj.comic?.name,
+        slug: obj.comic?.slug,
+      };
+    } else return undefined;
+  })
+  comic: Pick<ComicDto, 'name' | 'slug'>;
 
   // TODO: replace with real data
   @Expose()
   @IsOptional()
   @Type(() => ComicIssueStatsDto)
   @Transform(() => ({
-    floorPrice: getRandomFloat(1, 20),
+    floorPrice: getRandomFloatOrInt(1, 20),
     totalSupply: getRandomInt(1, 10) * 100,
-    totalVolume: getRandomFloat(1, 1000),
+    totalVolume: getRandomFloatOrInt(1, 1000),
+    totalIssuesCount: getRandomInt(6, 14),
   }))
   stats?: ComicIssueStatsDto[];
 
@@ -114,14 +139,20 @@ export class ComicIssueDto extends Presignable<ComicIssueDto> {
       return await Promise.all(
         input.map(async (obj) => {
           if (obj.pages) obj.pages = await ComicPageDto.presignUrls(obj.pages);
+          if (obj.creator?.avatar) {
+            obj.creator.avatar = await getReadUrl(obj.creator.avatar);
+          }
           return obj.presign();
         }),
       );
     } else {
       if (input.pages) {
         input.pages = await ComicPageDto.presignUrls(input.pages);
-        return await input.presign();
       }
+      if (input.creator?.avatar) {
+        input.creator.avatar = await getReadUrl(input.creator.avatar);
+      }
+      return await input.presign();
     }
   }
 }

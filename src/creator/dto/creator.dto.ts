@@ -14,7 +14,7 @@ import { IsKebabCase } from 'src/decorators/IsKebabCase';
 import { ApiProperty } from '@nestjs/swagger';
 import { ComicDto } from 'src/comic/dto/comic.dto';
 import { Presignable } from 'src/types/presignable';
-import { getRandomFloat, getRandomInt } from 'src/utils/helpers';
+import { getRandomFloatOrInt, getRandomInt } from 'src/utils/helpers';
 import { CreatorStatsDto } from './creator-stats.dto';
 
 @Exclude()
@@ -98,7 +98,7 @@ export class CreatorDto extends Presignable<CreatorDto> {
   @Type(() => CreatorStatsDto)
   @Transform(() => ({
     comicIssuesCount: getRandomInt(1, 30),
-    totalVolume: getRandomFloat(0, 10000),
+    totalVolume: getRandomFloatOrInt(0, 10000),
   }))
   stats?: CreatorStatsDto[];
 

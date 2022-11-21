@@ -100,6 +100,7 @@ export class ComicIssueService {
 
   async findAll() {
     const comicIssues = await this.prisma.comicIssue.findMany({
+      include: { comic: { select: { name: true, slug: true, creator: true } } },
       where: {
         deletedAt: null,
         publishedAt: { lt: new Date() },
@@ -107,12 +108,17 @@ export class ComicIssueService {
         comic: { deletedAt: null },
       },
     });
+
     return comicIssues;
   }
 
   async findOne(id: number) {
     const comicIssue = await this.prisma.comicIssue.findUnique({
-      include: { nfts: true, pages: true },
+      include: {
+        nfts: true,
+        pages: true,
+        comic: { select: { name: true, slug: true, creator: true } },
+      },
       where: { id },
     });
 

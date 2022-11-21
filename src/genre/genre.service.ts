@@ -62,6 +62,7 @@ export class GenreService {
   async findAll() {
     const genres = await this.prisma.genre.findMany({
       where: { deletedAt: null },
+      orderBy: { priority: 'asc' },
     });
     return genres;
   }

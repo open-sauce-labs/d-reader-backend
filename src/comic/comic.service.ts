@@ -17,10 +17,11 @@ import {
 } from '../aws/s3client';
 import { ComicStats } from './types/comic-stats';
 import { WalletComicService } from './wallet-comic.service';
-import { Comic, ComicIssue, WalletComic, Genre } from '@prisma/client';
+import { Comic, ComicIssue, Creator, WalletComic, Genre } from '@prisma/client';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { subDays } from 'date-fns';
 import { isEmpty } from 'lodash';
+import { ComicFilterQueryParams } from './dto/comic.dto';
 
 type WithStats<T> = T & {
   stats: ComicStats;
@@ -86,11 +87,30 @@ export class ComicService {
   }
 
   async findAll(
+    query: ComicFilterQueryParams,
     walletAddress?: string,
-  ): Promise<WithStats<Comic & { genres: Genre[] }>[]> {
+  ): Promise<
+    WithStats<
+      Comic & { genres: Genre[]; issues: ComicIssue[]; creator: Creator }
+    >[]
+  > {
     const comics = await this.prisma.comic.findMany({
-      include: { genres: true, issues: true },
+      include: { genres: true, issues: true, creator: true },
       where: {
+        creator: { slug: query?.creatorSlug },
+        name: { contains: query?.nameSubstring, mode: 'insensitive' },
+        AND: query?.genreSlugs?.map((slug) => {
+          return {
+            genres: {
+              some: {
+                slug: {
+                  equals: slug,
+                  mode: 'insensitive',
+                },
+              },
+            },
+          };
+        }),
         deletedAt: null,
         publishedAt: { lt: new Date() },
         verifiedAt: { not: null },
@@ -114,9 +134,13 @@ export class ComicService {
   async findOne(
     slug: string,
     walletAddress?: string,
-  ): Promise<WithStats<Comic & { genres: Genre[]; issues: ComicIssue[] }>> {
+  ): Promise<
+    WithStats<
+      Comic & { genres: Genre[]; issues: ComicIssue[]; creator: Creator }
+    >
+  > {
     const comic = await this.prisma.comic.findUnique({
-      include: { genres: true, issues: true },
+      include: { genres: true, issues: true, creator: true },
       where: { slug },
     });
 

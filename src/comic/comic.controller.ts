@@ -10,6 +10,7 @@ import {
   UseInterceptors,
   UploadedFiles,
   UploadedFile,
+  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { RestAuthGuard } from 'src/guards/rest-auth.guard';
@@ -24,7 +25,7 @@ import {
   FileFieldsInterceptor,
   FileInterceptor,
 } from '@nestjs/platform-express';
-import { ComicDto } from './dto/comic.dto';
+import { ComicDto, ComicFilterQueryParams } from './dto/comic.dto';
 import { plainToInstance } from 'class-transformer';
 import { ApiFile } from 'src/decorators/api-file.decorator';
 import { ComicUpdateGuard } from 'src/guards/comic-update.guard';
@@ -76,8 +77,13 @@ export class ComicController {
 
   /* Get all comics */
   @Get('get')
-  async findAll(@WalletEntity() wallet: Wallet): Promise<ComicDto[]> {
-    const comics = await this.comicService.findAll(wallet.address);
+  async findAll(
+    @WalletEntity() wallet: Wallet,
+    @Query() query: ComicFilterQueryParams,
+  ): Promise<ComicDto[]> {
+    console.log('Query: ', query);
+    console.log('******************');
+    const comics = await this.comicService.findAll(query, wallet.address);
     const comicsDto = plainToInstance(ComicDto, comics);
     return ComicDto.presignUrls(comicsDto);
   }

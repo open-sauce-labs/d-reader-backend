@@ -13,6 +13,9 @@ import { IsEmptyOrUrl } from 'src/decorators/IsEmptyOrUrl';
 import { Presignable } from 'src/types/presignable';
 import { ComicStatsDto } from './comic-stats.dto';
 import { WalletComicDto } from './wallet-comic.dto';
+import { ApiProperty } from '@nestjs/swagger';
+import { getReadUrl } from 'src/aws/s3client';
+import { GenreDto } from 'src/genre/dto/genre.dto';
 
 @Exclude()
 export class ComicDto extends Presignable<ComicDto> {
@@ -26,7 +29,7 @@ export class ComicDto extends Presignable<ComicDto> {
 
   @Expose()
   @IsBoolean()
-  isOngoing: boolean;
+  isCompleted: boolean;
 
   @Expose()
   @IsBoolean()
@@ -47,10 +50,6 @@ export class ComicDto extends Presignable<ComicDto> {
   @Expose()
   @Transform(({ obj }) => !!obj.popularizedAt)
   isPopular: boolean;
-
-  @Expose()
-  @Transform(({ obj }) => !!obj.completedAt)
-  isCompleted: boolean;
 
   @Expose()
   @IsString()
@@ -100,12 +99,18 @@ export class ComicDto extends Presignable<ComicDto> {
   @IsEmptyOrUrl()
   youTube: string;
 
+  // TODO: GenrePreviewDto
   @Expose()
-  @IsArray()
-  @IsOptional()
-  @Type(() => String)
-  @Transform(({ obj }) => obj.genres?.map((genre) => genre.name))
-  genres?: string[];
+  @Transform(({ obj }) => {
+    if (obj.genres) {
+      return obj.genres.map((genre) => ({
+        name: genre?.name,
+        // slug: genre?.slug,
+        color: genre?.color,
+      }));
+    } else return undefined;
+  })
+  genres: Array<Pick<GenreDto, 'name' | 'color'>>;
 
   @Expose()
   @IsOptional()
@@ -124,14 +129,17 @@ export class ComicDto extends Presignable<ComicDto> {
   issues?: ComicIssueDto[];
 
   @Expose()
-  @IsOptional()
-  @Type(() => CreatorDto)
-  creator?: CreatorDto;
-
-  @Expose()
-  @IsOptional()
-  @IsNumber()
-  issuesCount?: number | null;
+  @Transform(({ obj }) => {
+    if (obj.creator) {
+      return {
+        name: obj.creator?.name,
+        slug: obj.creator?.slug,
+        isVerified: !!obj.creator?.verifiedAt,
+        avatar: obj.creator?.avatar,
+      };
+    } else return undefined;
+  })
+  creator: Pick<CreatorDto, 'name' | 'slug' | 'isVerified' | 'avatar'>;
 
   @Expose()
   @IsOptional()
@@ -153,8 +161,8 @@ export class ComicDto extends Presignable<ComicDto> {
           if (obj.issues) {
             obj.issues = await ComicIssueDto.presignUrls(obj.issues);
           }
-          if (obj.creator) {
-            obj.creator = await CreatorDto.presignUrls(obj.creator);
+          if (obj.creator?.avatar) {
+            obj.creator.avatar = await getReadUrl(obj.creator.avatar);
           }
           return obj.presign();
         }),
@@ -163,10 +171,35 @@ export class ComicDto extends Presignable<ComicDto> {
       if (input.issues) {
         input.issues = await ComicIssueDto.presignUrls(input.issues);
       }
-      if (input.creator) {
-        input.creator = await CreatorDto.presignUrls(input.creator);
+      if (input.creator?.avatar) {
+        input.creator.avatar = await getReadUrl(input.creator.avatar);
       }
       return await input.presign();
     }
   }
+}
+
+@Exclude()
+export class ComicFilterQueryParams {
+  @Expose()
+  @IsOptional()
+  @IsKebabCase()
+  creatorSlug?: string;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  nameSubstring?: string;
+
+  @Expose()
+  @IsOptional()
+  @IsArray()
+  @ApiProperty({ type: String })
+  @Type(() => String)
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.split(',');
+    } else return value;
+  })
+  genreSlugs?: string[];
 }
