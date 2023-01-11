@@ -11,6 +11,7 @@ import {
   IdentitySigner,
   keypairIdentity,
   Metaplex,
+  sol,
   toBigNumber,
   toMetaplexFile,
 } from '@metaplex-foundation/js';
@@ -20,6 +21,7 @@ import { readFileSync } from 'fs';
 import { awsStorage } from '@metaplex-foundation/js-plugin-aws';
 import { s3Client } from 'src/aws/s3client';
 import * as bs58 from 'bs58';
+import { Cluster } from 'src/types/cluster';
 
 @Injectable()
 export class CandyMachineService {
@@ -271,6 +273,10 @@ export class CandyMachineService {
         },
         { payer: { publicKey: tokenOwner } as IdentitySigner },
       );
+
+    if (process.env.SOLANA_CLUSTER === Cluster.Devnet) {
+      await this.metaplex.rpc().airdrop(tokenOwner, sol(1));
+    }
 
     if (!blockhash) blockhash = await this.connection.getLatestBlockhash();
     createNftBuilder.setFeePayer({ publicKey: tokenOwner } as IdentitySigner);
